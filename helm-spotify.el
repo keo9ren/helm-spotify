@@ -30,7 +30,7 @@
 (require 'seq)
 
 (defcustom spotify-server
-  "spotify"
+  "/usr/bin/spotify"
   "Locaton of SPOTIFY-SERVER."
   :group 'helm-spotify
   :type 'file)
@@ -138,18 +138,17 @@
 (defun helm-spotify ()
   "HELM-SPOTIFY."
   (interactive)
-  ;(helm-spotify-start)
+  (helm-spotify-start)
   (helm-spotify-interface)
 )
 
 ;;;###autoload
 (defun helm-spotify-start ()
   "HELM-SPOTIFY.."
-  (interactive)
   (when (featurep 'helm)
-    (unless (spotify--process-running-p spotify-server)
+    (unless (spotify--process-running-p "spotify --minimized &")
       (let ((buf (get-buffer-create spotify-server-buffer-name)))
-        (with-current-buffer buf (start-process "spotify" (current-buffer)
+        (with-current-buffer buf (start-process "spotify --minimized &" (current-buffer)
                                                 spotify-server))))))
 
 (defun spotify--process-running-p (name)
