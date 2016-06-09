@@ -24,6 +24,18 @@
 (require 'json)
 (require 'helm)
 (require 'multi)
+(require 'find-file)
+(require 'levenshtein)
+(require 'cl-lib)
+(require 'seq)
+
+(defcustom spotify-server
+  "spotify"
+  "Locaton of SPOTIFY-SERVER."
+  :group 'helm-spotify
+  :type 'file)
+
+(defconst spotify-server-buffer-name "*spotify*" "The spotify buffer name.")
 
 (defun alist-get (symbols alist)
   "Look up the value for the chain of SYMBOLS in ALIST."
@@ -103,6 +115,14 @@
     (,(format "Play Album - %s" (alist-get '(album name) track)) . spotify-play-album)
     ("Show Track Metadata" . pp)))
 
+(defun helm-spotify-interface ()
+  "Bring up a Spotify search interface in helm."
+  (setq debug-on-error t)
+  (helm :sources '(helm-source-spotify-track-search)
+        :buffer "*helm-spotify*")
+  (setq debug-on-error nil)
+)
+
 ;;;###autoload
 (defvar helm-source-spotify-track-search
   '((name . "Spotify")
@@ -113,12 +133,47 @@
     (candidates-process . helm-spotify-search)
     (action-transformer . helm-spotify-actions-for-track)))
 
+
 ;;;###autoload
 (defun helm-spotify ()
-  "Bring up a Spotify search interface in helm."
+  "HELM-SPOTIFY."
   (interactive)
-  (helm :sources '(helm-source-spotify-track-search)
-	:buffer "*helm-spotify*"))
+  ;(helm-spotify-start)
+  (helm-spotify-interface)
+)
+
+;;;###autoload
+(defun helm-spotify-start ()
+  "HELM-SPOTIFY.."
+  (interactive)
+  (when (featurep 'helm)
+    (unless (spotify--process-running-p spotify-server)
+      (let ((buf (get-buffer-create spotify-server-buffer-name)))
+        (with-current-buffer buf (start-process "spotify" (current-buffer)
+                                                spotify-server))))))
+
+(defun spotify--process-running-p (name)
+  "If a process called NAME is running or not."
+  (or (get-process name) (spotify--system-process-running-p name)))
+
+(defun spotify--filter (pred seq)
+  "Apply PRED to filter SEQ."
+  (delq nil
+        (mapcar (lambda (x) (and (funcall pred x) x)) seq)))
+
+(defun spotify--system-process-running-p (name)
+  "If a process called NAME is running on the system."
+  (let* ((all-args (mapcar (lambda (x) (cdr (assq 'args (process-attributes x)))) (list-system-processes)))
+         (match-args (spotify--filter (lambda (x) (spotify--string-match (concat "\\b" name "\\b") x)) all-args))
+         )
+    (not (null match-args))))
+
+(defun spotify--string-match (regexp name)
+  "Wrap 'string-match' of REGEXP and NAME to make sure we don't pass it a nil string."
+  (when name
+    (string-match regexp name)))
+
+
 
 (provide 'helm-spotify)
 ;;; helm-spotify.el ends here
